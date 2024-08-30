@@ -2,6 +2,7 @@
 
 //API URL
 const API = "http://localhost:3000";
+const WS_API = "ws://localhost:3000";
 
 //Populate products from API method
 const populateProducts = async (category, method = "GET", payload) => {
@@ -14,17 +15,21 @@ const populateProducts = async (category, method = "GET", payload) => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         };
+  //Get data
   const res = await fetch(`${API}/${category}`, { method, ...send });
   const data = await res.json();
 
+  //Populate products
   for (const product of data) {
     const item = document.createElement("product-item");
+    item.dataset.id = product.id;
     for (const key of ["name", "rrp", "info"]) {
       const span = document.createElement("span");
       span.slot = key;
       span.textContent = product[key];
       item.appendChild(span);
     }
+    //Append to DOM
     products.appendChild(item);
   }
 };
@@ -37,13 +42,34 @@ const populateProducts = async (category, method = "GET", payload) => {
 const category = document.querySelector("#category");
 const add = document.querySelector("#add");
 
-//Populate products
+let socket = null;
+//Realtime orders handler using WebSocket
+const realtimeOrders = (category) => {
+  if (socket) socket.close();
+  socket = new WebSocket(`${WS_API}/orders/${category}`);
+  socket.addEventListener("message", ({ data }) => {
+    try {
+      const { id, total } = JSON.parse(data);
+      const item = document.querySelector(`[data-id="${id}"]`);
+      if (item === null) return;
+      const span =
+        item.querySelector('[slot="orders"]') || document.createElement("span");
+      span.slot = "orders";
+      span.textContent = total;
+      item.appendChild(span);
+    } catch (err) {
+      console.error("Error:", err);
+    }
+  });
+};
+//Populate products on page load
 category.addEventListener("input", async ({ target }) => {
   add.style.display = "block";
   await populateProducts(target.value);
+  realtimeOrders(target.value);
 });
 
-//Add product
+//Add product from handler
 add.addEventListener("submit", async (e) => {
   e.preventDefault();
 
@@ -54,6 +80,8 @@ add.addEventListener("submit", async (e) => {
     info: target.info.value,
   };
   await populateProducts(category.value, "POST", payload);
+  realtimeOrders(category.value);
+  //Reset form
   target.reset();
 });
 
@@ -63,8 +91,8 @@ customElements.define(
   class Item extends HTMLElement {
     constructor() {
       super();
-      const itemTmpl = document.querySelector("#item").content.cloneNode(true);
-      this.attachShadow({ mode: "open" }).appendChild(itemTmpl);
+      const itemTmpl = document.querySelector("#item").content;
+      this.attachShadow({ mode: "open" }).appendChild(itemTmpl.cloneNode(true));
     }
   }
 );
