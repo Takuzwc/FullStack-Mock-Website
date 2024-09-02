@@ -45,8 +45,14 @@ const add = document.querySelector("#add");
 let socket = null;
 //Realtime orders handler using WebSocket
 const realtimeOrders = (category) => {
-  if (socket) socket.close();
-  socket = new WebSocket(`${WS_API}/orders/${category}`);
+  if (socket === null) {
+    socket = new WebSocket(`${WS_API}/orders/${category}`);
+  } else {
+    //Send update-category command to server
+    JSON.stringify({ cmd: "update-category", payload: { category } });
+  }
+
+  //Listen for messages from server
   socket.addEventListener("message", ({ data }) => {
     try {
       const { id, total } = JSON.parse(data);
