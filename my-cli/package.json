@@ -12,6 +12,7 @@
   "bin": "./bin/cmd.js",
   "type": "module",
   "dependencies": {
+    "commander": "^12.1.0",
     "got": "^14.4.2"
   }
 }
